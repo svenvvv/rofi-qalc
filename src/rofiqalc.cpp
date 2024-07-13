@@ -181,20 +181,25 @@ ThreadData::ThreadData()
 
 void RofiQalc::calculate_and_print(RofiQalc const & state, ThreadData & data)
 {
-    EvaluationOptions eo;
-    PrintOptions po;
+    EvaluationOptions eo = default_evaluation_options;
+    PrintOptions po = default_print_options;
+    po.use_unicode_signs = true;
+
     bool btrue = true;
     bool bfalse = false;
 
     for (;;) {
+        data.has_new_data.wait(false);
+        data.has_new_data.compare_exchange_weak(btrue, bfalse);
+
         ExpressionQuery query;
         MathStructure ms;
         std::string result = "";
-        std::string unlocalizedExpr = "";
+        std::string unlocalized_expr = "";
         std::optional<std::string> error = std::nullopt;
-
-        data.has_new_data.wait(false);
-        data.has_new_data.compare_exchange_weak(btrue, bfalse);
+        bool is_plot_query;
+        /* Divided by 2 due to the hack, read below */
+        size_t eval_timeout_ms = state.options.eval_timeout_ms / 2;
 
         if (state._should_quit.load()) {
             break;
@@ -214,17 +219,44 @@ void RofiQalc::calculate_and_print(RofiQalc const & state, ThreadData & data)
             goto exit;
         }
 
-        unlocalizedExpr = data.calc->unlocalizeExpression(query.expression);
-        if (!data.calc->calculate(&ms, unlocalizedExpr, state.options.eval_timeout_ms, eo)) {
+        unlocalized_expr = data.calc->unlocalizeExpression(query.expression);
+        is_plot_query = starts_with(unlocalized_expr.c_str(), "plot(");
+
+        /*
+         * A bit hackish, but:
+         *  - calculate() and print() don't support "to" expressions;
+         *  - calculateAndPrint() doesn't support plotting;
+         *  - calculateAndPrint() doesn't give out the resulting MathStructure (for ans vars).
+         * Looking through the libqalculate code it looks like I'd have to lift a huge chunk of
+         * code to make calculate() and print() support "to" expressions.
+         *
+         * So instead let's do a dirty hack and just run it through calculate() first to get the
+         * MathStructure, then (if not a plot) then calculate it again in calculateAndPrint().
+         * Should be fine (for my use case :)) since I only use the rofi calc for simple
+         * calculations.
+         */
+        if (!data.calc->calculate(&ms, unlocalized_expr, eval_timeout_ms, eo)) {
             g_debug("Timed out!");
             error = std::make_optional("Evaluation timed out");
             goto exit;
         }
+
+        // calculateAndPrint doesn't show plots??
+        if (is_plot_query) {
+            result = data.calc->print(ms, eval_timeout_ms, po);
+        } else {
+            result = data.calc->calculateAndPrint(query.expression, eval_timeout_ms, eo, po);
+            // No way to tell whether it was successful??
+            if (result.length() == 0 && query.expression.length() != 0) {
+                g_debug("Failed to calculate");
+                error = std::make_optional("Failed to calculate");
+                goto exit;
+            }
+        }
         g_debug("Finished evaluation");
-        result = data.calc->print(ms, state.options.eval_timeout_ms, po);
 
         data.is_plot_open = data.calc->gnuplotOpen();
-        if (data.is_plot_open && !starts_with(unlocalizedExpr.c_str(), "plot(")) {
+        if (data.is_plot_open && !is_plot_query){
             data.calc->closeGnuplot();
         }
 

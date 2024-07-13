@@ -59,6 +59,10 @@ static void menu_entry_save_history(RofiQalc & state)
         g_debug("Result is error, not saving to history");
         return;
     }
+    if (state.is_plot_open()) {
+        g_debug("Result is plot, not saving to history");
+        return;
+    }
 
     if (!state.options.no_history) {
         state.append_result_to_history();
