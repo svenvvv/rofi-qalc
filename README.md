@@ -18,9 +18,9 @@ Uses the same history file as `rofi-calc`, so if you have anything important the
 then back it up just-in-case.
 
 **A note on variables**: since rofi doesn't provide a way to clear the filter textbox
-contents then using variables is a bit iffy. 
+contents then using variables is a bit iffy when disabling the filter auto-clear. 
 To use variables you first must type the expression, e.g. `ten = 10` and then
-clear the textbox by pressing Ctrl-U.
+clear the textbox by pressing Ctrl-F.
 
 When you clear the textbox by deleting the text gradually then rofi will at some
 point call the `rofi-qalc` mode with `ten =`, which is parsed by libqalculate as
@@ -64,3 +64,22 @@ for the `rofi-qalc` module, e.g.:
 G_MESSAGES_DEBUG=rq rofi -show "qalc"
 ```
 
+### Usage
+
+Enter your expression in the filter box.
+
+Select the "Add to history" option to add the result to history.
+Ctrl-Enter on the "Add to history" option will add the result to history 
+without saving it (will only be displayed during current session, 
+indicated by `(tmp)` prefix).
+
+### Command-line arguments
+
+This mode supports the following command-line arguments:
+
+* `-eval-timeout-ms` --- evaluation timeout passed to libqalculate;
+* `-no-history` --- disables history file access;
+* `-automatic-save-to-history` --- auto-save last entered expression to history when quitting;
+* `-history-only-save-results` --- disables saving of expressions to history (e.g. instead of `2*10 = 20` the history will show just `20`);
+* `-history-length` --- maximum number of lines of history to keep;
+* `-no-auto-clear-filter` --- disables automatic clearing of the filter textbox;

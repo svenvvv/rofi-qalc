@@ -20,6 +20,7 @@
 #include <rofi/helper.h>
 #include <rofi/mode-private.h>
 
+#include "rofi_hacks.h"
 #include "qalc.h"
 
 using namespace rq;
@@ -29,9 +30,7 @@ using namespace rq;
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "rq"
 
-extern "C" void rofi_view_reload(void);
-
-typedef void (*MenuEntryCallback)(RofiQalc & state);
+typedef void (*MenuEntryCallback)(RofiQalc & state, MenuReturn action);
 
 struct rq_menu_entry
 {
@@ -53,8 +52,9 @@ static inline RofiQalc & get_state(Mode const * sw)
     return *get_state_ptr(sw);
 }
 
-static void menu_entry_save_history(RofiQalc & state)
+static void menu_entry_save_history(RofiQalc & state, MenuReturn action)
 {
+    g_info("save hist %d", action);
     if (state.result_is_error) {
         g_debug("Result is error, not saving to history");
         return;
@@ -65,10 +65,19 @@ static void menu_entry_save_history(RofiQalc & state)
     }
 
     if (!state.options.no_history) {
-        state.append_result_to_history();
+        state.append_result_to_history(action == MENU_OK);
     }
 
     state.update_ans();
+
+    if (!state.options.no_auto_clear_filter) {
+        // We can't clear it in the same thread, so lets leave it up to async
+        state.textbox_clear_fut = std::async(std::launch::async, []() {
+            rofi_view_trigger_action(rofi_view_get_active(),
+                                    RofiBindingsScope::GLOBAL, (guint)RofiAction::CLEAR_LINE);
+            rofi_view_reload();
+        });
+    }
 }
 
 static struct rq_menu_entry const menu_entries[] = {
@@ -121,7 +130,7 @@ static ModeMode rq_mode_result(Mode * sw, int menu_entry,
     }
     if (menu_entry & MENU_OK) {
         if (selected_line < ARRAY_SIZE(menu_entries)) {
-            menu_entries[selected_line].callback(state);
+            menu_entries[selected_line].callback(state, MENU_OK);
         } else {
             // struct rq_history_entry const * entry = &state->history[0];
             // memcpy(state->append_postfix, entry->result, entry->result_len);
@@ -139,7 +148,7 @@ static ModeMode rq_mode_result(Mode * sw, int menu_entry,
         return RELOAD_DIALOG;
     }
     if (menu_entry & MENU_CUSTOM_INPUT) {
-        g_debug("custom input");
+        menu_entries[0].callback(state, MENU_CUSTOM_INPUT);
         return RELOAD_DIALOG;
     }
 
@@ -188,10 +197,14 @@ static char* rq_mode_get_display_value(Mode const * sw, unsigned selected_line,
         return NULL;
     }
     auto const & entry = state.history[entry_index];
+    auto entry_str = entry.print();
+    if (!entry.persistent) {
+        entry_str = "(tmp) " + entry_str;
+    }
 
-    gchar * history_line = static_cast<gchar*>(g_malloc(entry.length() + 1));
-    memcpy(history_line, entry.c_str(), entry.length());
-    history_line[entry.length()] = 0;
+    gchar * history_line = static_cast<gchar*>(g_malloc(entry_str.length() + 1));
+    memcpy(history_line, entry_str.c_str(), entry_str.length());
+    history_line[entry_str.length()] = 0;
 
     return history_line;
 }
@@ -244,7 +257,7 @@ static char * rq_mode_preprocess_input(Mode * sw, char const * input)
 G_MODULE_EXPORT Mode mode =
 {
     .abi_version                = ABI_VERSION,
-    .name                       = const_cast<char*>("qalc"),
+    .name                       = const_cast<char*>("qalc-dev"),
     .cfg_name_key               = "display-qalculate",
     .display_name               = nullptr,
 

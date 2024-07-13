@@ -71,7 +71,7 @@ static inline gchar * get_config_history_filename(gchar const * basedir)
 //     return g_build_filename(basedir, "rofi_qalc_variables", NULL);
 // }
 
-void RofiQalc::append_result_to_history(void)
+void RofiQalc::append_result_to_history(bool persistent)
 {
     if (this->history.size() == this->options.history_length) {
         this->history.erase(this->history.begin());
@@ -80,16 +80,7 @@ void RofiQalc::append_result_to_history(void)
     g_debug("Appending %s = %s to history",
             this->_last_expr.c_str(), this->result.c_str());
 
-    std::stringstream ss{};
-
-    if (!this->options.history_only_save_results) {
-        ss << this->_last_expr;
-        ss << " = ";
-    }
-
-    ss << this->result;
-
-    this->history.push_back(ss.str());
+    this->history.emplace_back(this->_last_expr, this->result, persistent);
 }
 
 
@@ -125,7 +116,20 @@ void RofiQalc::load_history(void)
             // g_debug("history line %lu (%lu) %.*s",
             //         state->history_used, newline - head, (int)(newline - head), head);
 
-            this->history.push_back({head, size_t(newline - head)});
+            std::string_view line{head, size_t(newline - head)};
+            std::string_view expression;
+            std::string_view result;
+
+            auto separator_pos = line.rfind(HistoryEntry::separator);
+            if (separator_pos != std::string::npos) {
+                expression = line.substr(0, separator_pos);
+                result = line.substr(separator_pos + HistoryEntry::separator.length());
+            } else {
+                expression = "";
+                result = line;
+            }
+
+            this->history.emplace_back(std::string{expression}, std::string{result}, true);
             if (this->history.size() == this->options.history_length) {
                 g_warning("History file reading stopped, file longer than history_length");
                 break;
@@ -147,17 +151,25 @@ void RofiQalc::save_history(void) const
     gchar * history_file = get_config_history_filename(history_dir);
 
 
-    size_t filesize =
-        std::accumulate(this->history.begin(), this->history.end(), 0,
-                        [](size_t acc, std::string const & b) { return acc + b.length() + 1; });
+    auto accumulator = [](size_t acc, HistoryEntry const & e) {
+        if (!e.persistent) {
+            return acc;
+        }
+        return acc + e.print().length() + 1;
+    };
+    size_t filesize = std::accumulate(this->history.begin(), this->history.end(), 0, accumulator);
     g_debug("Saving history to %s, %lu b", history_file, filesize);
 
     gchar * history_data = reinterpret_cast<gchar*>(g_malloc(filesize));
     size_t pos = 0;
     for (auto const & entry : this->history) {
-        std::memcpy(history_data + pos, entry.c_str(), entry.length());
-        history_data[pos + entry.length()] = '\n';
-        pos += entry.length() + 1;
+        if (!entry.persistent) {
+            continue;
+        }
+        auto line = entry.print();
+        std::memcpy(history_data + pos, line.c_str(), line.length());
+        history_data[pos + line.length()] = '\n';
+        pos += line.length() + 1;
     }
 
     g_file_set_contents(history_file, history_data, filesize, &error);
@@ -260,8 +272,11 @@ void RofiQalc::calculate_and_print(RofiQalc const & state, ThreadData & data)
             data.calc->closeGnuplot();
         }
 
-        // for (auto & var : data.calc.variables) {
-        //     std::cout << "Variable " << var->preferredDisplayName().name << "\n";
+        // for (auto * var : data.calc->variables) {
+        //     if (var->isKnown() && !var->isBuiltin() && var->isActive()) {
+        //         KnownVariable * kv = (KnownVariable*)var;
+        //         std::cout << "var: " << kv->name(0) << " = " << kv->get() << "\n";
+        //     }
         // }
         // std::this_thread::sleep_for(std::chrono::seconds(1));
 

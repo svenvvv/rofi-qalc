@@ -33,6 +33,7 @@ static char const * const opt_auto_save_history = "-automatic-save-to-history";
 static char const * const opt_history_only_save_results = "-history-only-save-results";
 static char const * const opt_history_length = "-history-length";
 #define OPT_HISTORY_LENGTH_DEFAULT 100
+static char const * const opt_no_auto_clear_filter = "-no-auto-clear-filter";
 
 Options::Options()
 {
@@ -42,6 +43,7 @@ Options::Options()
     this->no_history = find_arg(opt_no_history) != -1;
     this->auto_save_last_to_history = find_arg(opt_auto_save_history) != -1;
     this->history_only_save_results = find_arg(opt_history_only_save_results) != -1;
+    this->no_auto_clear_filter = find_arg(opt_no_auto_clear_filter) != -1;
 
     if (find_arg_str(opt_history_length, &strarg) == TRUE) {
         this->history_length = atoi(strarg);

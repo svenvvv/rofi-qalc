@@ -18,29 +18,28 @@
  */
 #pragma once
 
-#include <cstdlib>
+#include <gmodule.h>
 
-namespace rq
-{
+struct RofiViewState;
 
-struct Options
-{
-    Options();
-
-    /** libqalculate evaluation timeout, in milliseconds */
-    size_t eval_timeout_ms;
-    /** Disable history file access */
-    bool no_history;
-    /** TODO */
-    bool no_persist_history;
-    /** Enable automatically saving last result to history */
-    bool auto_save_last_to_history;
-    /** Disable saving expressions to history */
-    bool history_only_save_results;
-    /** Maximum number of history entries cached */
-    size_t history_length;
-    /** Whether to automatically clear the filter text after adding to history  */
-    bool no_auto_clear_filter;
+enum RofiBindingsScope {
+    GLOBAL,
 };
 
-} /* namespace rq */
+enum RofiAction {
+  /** Paste from primary clipboard */
+  PASTE_PRIMARY = 1,
+  /** Paste from secondary clipboard */
+  PASTE_SECONDARY,
+  /** Copy to secondary clipboard */
+  COPY_SECONDARY,
+  /** Clear the entry box. */
+  CLEAR_LINE,
+  // we don't need any more...
+};
+
+extern "C" void rofi_view_reload(void);
+extern "C" void rofi_view_trigger_action(RofiViewState * state,
+                                         RofiBindingsScope scope, guint action);
+extern "C" RofiViewState * rofi_view_get_active();
+

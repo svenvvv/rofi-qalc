@@ -19,9 +19,11 @@
 #pragma once
 
 #include <atomic>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -67,13 +69,29 @@ struct ThreadData
     ExpressionQuery queued_query;
 };
 
+struct HistoryEntry
+{
+    std::string expression;
+    std::string result;
+    bool persistent;
+
+    std::string print(void) const
+    {
+        std::stringstream ss;
+        ss << expression << separator << result;
+        return ss.str();
+    }
+
+    static constexpr std::string_view separator = " = ";
+};
+
 class RofiQalc
 {
 public:
     RofiQalc();
     ~RofiQalc();
 
-    void append_result_to_history(void);
+    void append_result_to_history(bool persistent=true);
     void load_history(void);
     void save_history(void) const;
 
@@ -94,12 +112,15 @@ public:
     /** Command-line options for the mode */
     Options options;
     /** History contents */
-    std::vector<std::string> history;
+    std::vector<HistoryEntry> history;
 
     /** Result of the last successful evaluate() call */
     std::string result;
     /** Whether the result contains an error string */
     bool result_is_error = false;
+
+    /** Ugly hack, see usage rofi_shim.cpp */
+    std::future<void> textbox_clear_fut;
 
 protected:
     static void calculate_and_print(RofiQalc const & state, ThreadData & data);
