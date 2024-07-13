@@ -16,13 +16,17 @@ dep_glib = dependency('glib-2.0')
 dep_qalc = dependency('libqalculate')
 dep_rofi = dependency('rofi')
 
-lib = shared_module('rofi-qalculate',
+lib = shared_module('rofi-qalc',
     [
         'src/options.cpp',
         'src/rofi_shim.cpp',
         'src/rofiqalc.cpp',
     ],
+    install: true,
     include_directories: include_directories('./include'),
     dependencies: [dep_cairo, dep_glib, dep_qalc, dep_rofi],
 )
 
+meson.add_install_script('scripts/install_rename.sh', get_option('libdir'), lib.name())
+
+message(lib.name())
