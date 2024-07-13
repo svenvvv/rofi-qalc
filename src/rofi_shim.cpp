@@ -73,7 +73,7 @@ static void menu_entry_save_history(RofiQalc & state)
 
 static struct rq_menu_entry const menu_entries[] = {
     { "Add to history",     menu_entry_save_history },
-    { "Clear variables",    menu_entry_save_history },
+    // { "Clear variables",    menu_entry_save_history },
 };
 
 static inline int selected_line_to_history_index(RofiQalc const & state, int selected_line)
@@ -139,6 +139,7 @@ static ModeMode rq_mode_result(Mode * sw, int menu_entry,
         return RELOAD_DIALOG;
     }
     if (menu_entry & MENU_CUSTOM_INPUT) {
+        g_debug("custom input");
         return RELOAD_DIALOG;
     }
 
@@ -242,18 +243,29 @@ static char * rq_mode_preprocess_input(Mode * sw, char const * input)
 
 G_MODULE_EXPORT Mode mode =
 {
-    .abi_version        = ABI_VERSION,
-    .name               = const_cast<char*>("qalculate"),
-    .cfg_name_key       = "display-qalculate",
+    .abi_version                = ABI_VERSION,
+    .name                       = const_cast<char*>("qalculate"),
+    .cfg_name_key               = "display-qalculate",
+    .display_name               = nullptr,
 
-    ._init              = rq_mode_init,
-    ._destroy           = rq_mode_destroy,
-    ._get_num_entries   = rq_mode_get_num_entries,
-    ._result            = rq_mode_result,
-    ._token_match       = rq_mode_token_match,
-    ._get_display_value = rq_mode_get_display_value,
-    ._preprocess_input  = rq_mode_preprocess_input,
-    ._get_message       = rq_mode_get_message,
-    .type = MODE_TYPE_DMENU,
+    ._init                      = rq_mode_init,
+    ._destroy                   = rq_mode_destroy,
+    ._get_num_entries           = rq_mode_get_num_entries,
+    ._result                    = rq_mode_result,
+    ._token_match               = rq_mode_token_match,
+    ._get_display_value         = rq_mode_get_display_value,
+    ._get_icon                  = nullptr,
+    ._get_completion            = nullptr,
+    ._preprocess_input          = rq_mode_preprocess_input,
+    ._get_message               = rq_mode_get_message,
+
+    .private_data               = nullptr,
+    .free                       = nullptr,
+    ._create                    = nullptr,
+    ._completer_result          = nullptr,
+    .ed                         = nullptr,
+    .module                     = nullptr,
+    .fallback_icon_fetch_uid    = 0,
+    .fallback_icon_not_found    = 0,
+    .type                       = MODE_TYPE_DMENU,
 };
-
