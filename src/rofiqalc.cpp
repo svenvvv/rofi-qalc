@@ -73,6 +73,10 @@ static inline gchar * get_config_history_filename(gchar const * basedir)
 
 void RofiQalc::append_result_to_history(bool persistent)
 {
+    if (this->_last_expr.length() == 0 || this->result.length() == 0) {
+        g_debug("Not appending result to history, no data");
+        return;
+    }
     if (this->history.size() == this->options.history_length) {
         this->history.erase(this->history.begin());
     }
