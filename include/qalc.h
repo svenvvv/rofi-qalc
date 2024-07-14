@@ -35,6 +35,10 @@ class Calculator;
 class MathStructure;
 class KnownVariable;
 
+#ifndef ROFIQALC_MODE_NAME
+#define ROFIQALC_MODE_NAME "qalc"
+#endif
+
 namespace rq
 {
 

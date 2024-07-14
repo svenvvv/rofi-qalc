@@ -257,7 +257,7 @@ static char * rq_mode_preprocess_input(Mode * sw, char const * input)
 G_MODULE_EXPORT Mode mode =
 {
     .abi_version                = ABI_VERSION,
-    .name                       = const_cast<char*>("qalc-dev"),
+    .name                       = const_cast<char*>(ROFIQALC_MODE_NAME),
     .cfg_name_key               = "display-qalculate",
     .display_name               = nullptr,
 
