@@ -32,6 +32,9 @@ Variables are not persistent throughout multiple sessions.
 
 First install `libqalculate` and `rofi`, as this project depends on them.
 
+If you're using an older version of `rofi` (not built from `next` branch) then you'll also
+need to set the option `use_rofi_next` to `false` during config.
+
 ```sh
 # Generate project files
 meson setup build \
@@ -40,6 +43,8 @@ meson setup build \
     -Dstrip=true \
     -Dlibdir=lib/rofi \
     -Dprefix=/usr
+# If using older rofi then also add:
+#   -Duse_rofi_next=false
 
 # Compile the project
 meson compile -C build

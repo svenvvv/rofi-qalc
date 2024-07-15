@@ -8,13 +8,17 @@ project(
         'cpp_std=c++20',
         'warning_level=3',
     ],
-    meson_version: '>= 0.60.0',
+    meson_version: '>= 1.1.0',
 )
 
 dep_cairo = dependency('cairo')
 dep_glib = dependency('glib-2.0')
 dep_qalc = dependency('libqalculate')
 dep_rofi = dependency('rofi')
+
+if get_option('use_rofi_next')
+    add_project_arguments('-DRQ_ROFI_NEXT', language: 'cpp')
+endif
 
 lib = shared_module('rofi-qalc',
     [

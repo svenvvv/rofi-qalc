@@ -274,11 +274,15 @@ G_MODULE_EXPORT Mode mode =
 
     .private_data               = nullptr,
     .free                       = nullptr,
+#ifdef RQ_ROFI_NEXT
     ._create                    = nullptr,
     ._completer_result          = nullptr,
+#endif
     .ed                         = nullptr,
     .module                     = nullptr,
     .fallback_icon_fetch_uid    = 0,
     .fallback_icon_not_found    = 0,
+#ifdef RQ_ROFI_NEXT
     .type                       = MODE_TYPE_DMENU,
+#endif
 };
