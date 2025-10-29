@@ -18,10 +18,10 @@
  */
 #pragma once
 
-#include <atomic>
+#include "options.h"
+#include "qalc_thread.h"
+
 #include <future>
-#include <memory>
-#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -29,57 +29,24 @@
 #include <thread>
 #include <vector>
 
-#include "options.h"
-
-class Calculator;
-class MathStructure;
-class KnownVariable;
-
 #ifndef ROFIQALC_MODE_NAME
 #define ROFIQALC_MODE_NAME "qalc"
 #endif
 
+class KnownVariable;
+
 namespace rq
 {
-
-class RofiQalc;
-
-typedef void (*EvalCallback)(std::string const & result,
-                             std::optional<std::string> error, void * userdata);
-
-struct ExpressionQuery
-{
-    /** Expression to calculate */
-    std::string expression;
-    /** Callback to call after evaluation is finished successfully */
-    EvalCallback callback = nullptr;
-    /** User data passed to callback */
-    void * userdata = nullptr;
-};
-
-struct ThreadData
-{
-    ThreadData();
-
-    std::unique_ptr<Calculator> calc;
-    // std::binary_semaphore eval_sem{0};
-    std::unique_ptr<MathStructure> last_result;
-    std::atomic<bool> has_new_data;
-    /** Indicates whether GNUplot is currently open */
-    bool is_plot_open = false;
-    std::atomic<bool> eval_in_progress;
-
-    std::mutex mtx_queued_query;
-    ExpressionQuery queued_query;
-};
 
 struct HistoryEntry
 {
     std::string expression;
     std::string result;
+    /** Indicates whether the history entry should be persistent (stored in the history file) */
     bool persistent;
 
-    std::string print(void) const
+    [[nodiscard]]
+    std::string print() const
     {
         std::stringstream ss;
         ss << expression << separator << result;
@@ -96,18 +63,20 @@ public:
     ~RofiQalc();
 
     void append_result_to_history(bool persistent=true);
-    void load_history(void);
-    void save_history(void) const;
+    void load_history();
+    void save_history() const;
 
-    void update_ans(void);
+    void update_ans();
     void evaluate(std::string_view const & expr, EvalCallback callback, void * userdata);
 
-    bool is_plot_open(void) const
+    [[nodiscard]]
+    bool is_plot_open() const
     {
         return _thread_data.is_plot_open;
     }
 
-    bool is_eval_in_progress(void) const
+    [[nodiscard]]
+    bool is_eval_in_progress() const
     {
         return _thread_data.eval_in_progress.load();
     }
@@ -119,7 +88,7 @@ public:
     std::vector<HistoryEntry> history;
 
     /** Result of the last successful evaluate() call */
-    std::string result;
+    std::string previous_result;
     /** Whether the result contains an error string */
     bool result_is_error = false;
 
@@ -127,15 +96,13 @@ public:
     std::future<void> textbox_clear_fut;
 
 protected:
-    static void calculate_and_print(RofiQalc const & state, ThreadData & data);
+    static void calculator_thread_entry(ThreadData & data);
 
 protected:
     /** Calculator thread */
     std::thread _thread;
     /** Data written to by the calculator thread */
-    ThreadData _thread_data;
-    /** Whether the calculator thread should quit */
-    std::atomic<bool> _should_quit = false;
+    ThreadData _thread_data { options };
 
     /** Last expression to be passed into evaluate() */
     std::string _last_expr;

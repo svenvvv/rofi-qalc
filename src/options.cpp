@@ -16,9 +16,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#include <rofi/helper.h>
-
 #include "options.h"
+
+#include <rofi/helper.h>
+#include <string>
 
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN    ((gchar*) "rq")
@@ -37,7 +38,7 @@ static char const * const opt_no_auto_clear_filter = "-no-auto-clear-filter";
 
 Options::Options()
 {
-    char * strarg = NULL;
+    char * strarg = nullptr;
 
     this->no_persist_history = find_arg(opt_no_persist_history) != -1;
     this->no_history = find_arg(opt_no_history) != -1;
@@ -46,13 +47,13 @@ Options::Options()
     this->no_auto_clear_filter = find_arg(opt_no_auto_clear_filter) != -1;
 
     if (find_arg_str(opt_history_length, &strarg) == TRUE) {
-        this->history_length = atoi(strarg);
+        this->history_length = std::stoul(strarg);
     } else {
         this->history_length = OPT_HISTORY_LENGTH_DEFAULT;
     }
 
     if (find_arg_str(opt_eval_timeout_ms, &strarg) == TRUE) {
-        this->eval_timeout_ms = atoi(strarg);
+        this->eval_timeout_ms = std::stoi(strarg);
     } else {
         this->eval_timeout_ms = OPT_EVAL_TIMEOUT_MS_DEFAULT;
     }
@@ -63,5 +64,5 @@ Options::Options()
     g_debug("  auto_save_last_to_history = %d", this->auto_save_last_to_history);
     g_debug("  history_only_save_results = %d", this->history_only_save_results);
     g_debug("  history_length = %lu", this->history_length);
-    g_debug("  eval_timeout_ms = %lu", this->eval_timeout_ms);
+    g_debug("  eval_timeout_ms = %i", this->eval_timeout_ms);
 }

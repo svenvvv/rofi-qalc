@@ -16,6 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+#include "qalc.h"
+
 #include <sstream>
 #include <gmodule.h>
 #include <libqalculate/qalculate.h>
@@ -25,43 +27,14 @@
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "rq"
 
-#include "qalc.h"
-
 using namespace rq;
 
-static constexpr bool starts_with(char const * const haystack, std::string const & needle)
-{
-    bool gobble_whitespace = true;
-    char const * ptr = haystack;
-    std::string::size_type pos = 0;
-    while (*ptr != 0) {
-        if (std::isspace(*ptr) && gobble_whitespace) {
-            ptr += 1;
-            continue;
-        }
-        gobble_whitespace = false;
-
-        if (std::tolower(*ptr) != std::tolower(needle.c_str()[pos])) {
-            return false;
-        }
-
-        pos += 1;
-        ptr += 1;
-
-        if (pos == needle.length()) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-static inline gchar * get_config_basedir(void)
+static gchar * get_config_basedir()
 {
     return g_build_filename(g_get_user_data_dir(), "rofi", NULL);
 }
 
-static inline gchar * get_config_history_filename(gchar const * basedir)
+static gchar * get_config_history_filename(gchar const * basedir)
 {
     return g_build_filename(basedir, "rofi_calc_history", NULL);
 }
@@ -73,7 +46,7 @@ static inline gchar * get_config_history_filename(gchar const * basedir)
 
 void RofiQalc::append_result_to_history(bool persistent)
 {
-    if (this->_last_expr.length() == 0 || this->result.length() == 0) {
+    if (this->_last_expr.empty() || this->previous_result.empty()) {
         g_debug("Not appending result to history, no data");
         return;
     }
@@ -82,18 +55,18 @@ void RofiQalc::append_result_to_history(bool persistent)
     }
 
     g_debug("Appending %s = %s to history",
-            this->_last_expr.c_str(), this->result.c_str());
+            this->_last_expr.c_str(), this->previous_result.c_str());
 
-    this->history.emplace_back(this->_last_expr, this->result, persistent);
+    this->history.emplace_back(this->_last_expr, this->previous_result, persistent);
 }
 
 
-void RofiQalc::load_history(void)
+void RofiQalc::load_history()
 {
-    GError * error = NULL;
+    GError * error = nullptr;
     gchar * history_dir = get_config_basedir();
     gchar * history_file = get_config_history_filename(history_dir);
-    gchar * history_data = NULL;
+    gchar * history_data = nullptr;
     gsize history_size;
 
     g_debug("Loading history from %s", history_file);
@@ -101,26 +74,24 @@ void RofiQalc::load_history(void)
     this->history.clear();
 
     g_mkdir_with_parents(history_dir, 0755);
-    if (g_file_test(history_file, (GFileTest)(G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR))) {
+    if (g_file_test(history_file, static_cast<GFileTest>(G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR))) {
         g_file_get_contents(history_file, &history_data, &history_size, &error);
-        if (error != NULL) {
+        if (error != nullptr) {
             g_error("Failed to read history file: %s", error->message);
-            g_error_free(error);
         }
 
         g_debug("History file is %lu b", history_size);
 
         gchar * head = history_data;
         while (head < history_data + history_size) {
-            gchar * newline =
-                reinterpret_cast<gchar*>(memchr(head, '\n', history_size - (head - history_data)));
-            if (newline == NULL) {
+            auto * newline = static_cast<gchar*>(memchr(head, '\n', history_size - (head - history_data)));
+            if (newline == nullptr) {
                 newline = history_data + history_size;
             }
             // g_debug("history line %lu (%lu) %.*s",
             //         state->history_used, newline - head, (int)(newline - head), head);
 
-            std::string_view line{head, size_t(newline - head)};
+            std::string_view line{head, static_cast<size_t>(newline - head)};
             std::string_view expression;
             std::string_view result;
 
@@ -148,23 +119,22 @@ void RofiQalc::load_history(void)
     g_free(history_dir);
 }
 
-void RofiQalc::save_history(void) const
+void RofiQalc::save_history() const
 {
-    GError * error = NULL;
+    GError * error = nullptr;
     gchar * history_dir = get_config_basedir();
     gchar * history_file = get_config_history_filename(history_dir);
 
-
-    auto accumulator = [](size_t acc, HistoryEntry const & e) {
+    auto accumulator = [](size_t const acc, HistoryEntry const & e) {
         if (!e.persistent) {
             return acc;
         }
         return acc + e.print().length() + 1;
     };
-    size_t filesize = std::accumulate(this->history.begin(), this->history.end(), 0, accumulator);
+    ssize_t const filesize = std::accumulate(this->history.begin(), this->history.end(), 0, accumulator);
     g_debug("Saving history to %s, %lu b", history_file, filesize);
 
-    gchar * history_data = reinterpret_cast<gchar*>(g_malloc(filesize));
+    auto * history_data = static_cast<gchar*>(g_malloc(filesize));
     size_t pos = 0;
     for (auto const & entry : this->history) {
         if (!entry.persistent) {
@@ -177,119 +147,13 @@ void RofiQalc::save_history(void) const
     }
 
     g_file_set_contents(history_file, history_data, filesize, &error);
-    if (error != NULL) {
+    if (error != nullptr) {
         g_error("Failed to write history file: %s", error->message);
-        g_error_free(error);
     }
 
     g_free(history_data);
     g_free(history_file);
     g_free(history_dir);
-}
-
-ThreadData::ThreadData()
-    : calc(new Calculator())
-    , last_result(new MathStructure())
-    , has_new_data(false)
-    , queued_query({})
-{
-}
-
-void RofiQalc::calculate_and_print(RofiQalc const & state, ThreadData & data)
-{
-    EvaluationOptions eo = default_evaluation_options;
-    PrintOptions po = default_print_options;
-    po.use_unicode_signs = true;
-
-    bool btrue = true;
-    bool bfalse = false;
-
-    for (;;) {
-        data.has_new_data.wait(false);
-        data.has_new_data.compare_exchange_weak(btrue, bfalse);
-
-        ExpressionQuery query;
-        MathStructure ms;
-        std::string result = "";
-        std::string unlocalized_expr = "";
-        std::optional<std::string> error = std::nullopt;
-        bool is_plot_query;
-        /* Divided by 2 due to the hack, read below */
-        size_t eval_timeout_ms = state.options.eval_timeout_ms / 2;
-
-        if (state._should_quit.load()) {
-            break;
-        }
-
-        data.eval_in_progress = true;
-        {
-            std::lock_guard<std::mutex> lock(data.mtx_queued_query);
-            query = data.queued_query;
-        }
-
-        g_debug("Evaluating %s...", query.expression.c_str());
-
-        if (query.callback == nullptr) {
-            g_debug("Missing callback!");
-            error = std::make_optional("Missing callback");
-            goto exit;
-        }
-
-        unlocalized_expr = data.calc->unlocalizeExpression(query.expression);
-        is_plot_query = starts_with(unlocalized_expr.c_str(), "plot(");
-
-        /*
-         * A bit hackish, but:
-         *  - calculate() and print() don't support "to" expressions;
-         *  - calculateAndPrint() doesn't support plotting;
-         *  - calculateAndPrint() doesn't give out the resulting MathStructure (for ans vars).
-         * Looking through the libqalculate code it looks like I'd have to lift a huge chunk of
-         * code to make calculate() and print() support "to" expressions.
-         *
-         * So instead let's do a dirty hack and just run it through calculate() first to get the
-         * MathStructure, then (if not a plot) then calculate it again in calculateAndPrint().
-         * Should be fine (for my use case :)) since I only use the rofi calc for simple
-         * calculations.
-         */
-        if (!data.calc->calculate(&ms, unlocalized_expr, eval_timeout_ms, eo)) {
-            g_debug("Timed out!");
-            error = std::make_optional("Evaluation timed out");
-            goto exit;
-        }
-
-        // calculateAndPrint doesn't show plots??
-        if (is_plot_query) {
-            result = data.calc->print(ms, eval_timeout_ms, po);
-        } else {
-            result = data.calc->calculateAndPrint(query.expression, eval_timeout_ms, eo, po);
-            // No way to tell whether it was successful??
-            if (result.length() == 0 && query.expression.length() != 0) {
-                g_debug("Failed to calculate");
-                error = std::make_optional("Failed to calculate");
-                goto exit;
-            }
-        }
-        g_debug("Finished evaluation");
-
-        data.is_plot_open = data.calc->gnuplotOpen();
-        if (data.is_plot_open && !is_plot_query){
-            data.calc->closeGnuplot();
-        }
-
-        // for (auto * var : data.calc->variables) {
-        //     if (var->isKnown() && !var->isBuiltin() && var->isActive()) {
-        //         KnownVariable * kv = (KnownVariable*)var;
-        //         std::cout << "var: " << kv->name(0) << " = " << kv->get() << "\n";
-        //     }
-        // }
-        // std::this_thread::sleep_for(std::chrono::seconds(1));
-
-        data.last_result->set(ms);
-
-exit:
-        data.eval_in_progress = false;
-        query.callback(result, error, query.userdata);
-    }
 }
 
 RofiQalc::RofiQalc()
@@ -308,22 +172,23 @@ RofiQalc::RofiQalc()
 
     // Set up ans variables
     std::string const ans_str = "ans";
-    for (int i = 0; i < 5; ++i) {
+    for (size_t i = 0; i < std::size(this->_var_ans); ++i) {
         auto index_str = std::to_string(i + 1);
         auto * kv = new KnownVariable(calc->temporaryCategory(),
                                       ans_str + index_str, m_undefined,
                                       "Answer " + index_str, false, true);
-        this->_var_ans[i] = static_cast<KnownVariable*>(calc->addVariable(kv));
+        this->_var_ans[i] = dynamic_cast<KnownVariable*>(calc->addVariable(kv));
     }
+    // Add aliases for answer variable
 	this->_var_ans[0]->addName("answer");
 	this->_var_ans[0]->addName(ans_str);
 
-    _thread = std::thread{calculate_and_print, std::ref(*this), std::ref(this->_thread_data)};
+    _thread = std::thread{calculator_thread_entry, std::ref(this->_thread_data)};
 }
 
 RofiQalc::~RofiQalc()
 {
-    this->_should_quit = true;
+    this->_thread_data.should_quit = true;
     this->_thread_data.has_new_data = true;
     this->_thread_data.has_new_data.notify_one();
     this->_thread.join();
@@ -331,7 +196,7 @@ RofiQalc::~RofiQalc()
 
 void RofiQalc::evaluate(std::string_view const & expr, EvalCallback callback, void * userdata)
 {
-    std::hash<std::string_view> const hasher;
+    constexpr std::hash<std::string_view> hasher;
     size_t hash = hasher(expr);
 
     if (hash == this->_last_expr_hash) {
@@ -341,7 +206,7 @@ void RofiQalc::evaluate(std::string_view const & expr, EvalCallback callback, vo
     this->_last_expr = expr;
 
     {
-        std::lock_guard<std::mutex> lock(this->_thread_data.mtx_queued_query);
+        std::lock_guard lock(this->_thread_data.mtx_queued_query);
         this->_thread_data.queued_query.expression = expr;
         this->_thread_data.queued_query.callback = callback;
         this->_thread_data.queued_query.userdata = userdata;

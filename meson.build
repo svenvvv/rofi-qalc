@@ -24,7 +24,8 @@ lib = shared_module('rofi-qalc',
     [
         'src/options.cpp',
         'src/rofi_shim.cpp',
-        'src/rofiqalc.cpp',
+        'src/rofi_qalc.cpp',
+        'src/rofi_qalc_thread.cpp',
     ],
     install: true,
     include_directories: include_directories('./include'),
@@ -32,5 +33,3 @@ lib = shared_module('rofi-qalc',
 )
 
 meson.add_install_script('scripts/install_rename.sh', get_option('libdir'), lib.name())
-
-message(lib.name())

@@ -28,7 +28,7 @@ struct Options
     Options();
 
     /** libqalculate evaluation timeout, in milliseconds */
-    size_t eval_timeout_ms;
+    int eval_timeout_ms;
     /** Disable history file access */
     bool no_history;
     /** TODO */

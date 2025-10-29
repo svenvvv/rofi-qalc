@@ -16,19 +16,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
+#include "rofi_hacks.h"
+#include "qalc.h"
+
 #include <rofi/mode.h>
 #include <rofi/helper.h>
 #include <rofi/mode-private.h>
 
-#include "rofi_hacks.h"
-#include "qalc.h"
-
-using namespace rq;
-
-#define ARRAY_SIZE(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
-
 #undef G_LOG_DOMAIN
 #define G_LOG_DOMAIN "rq"
+
+using namespace rq;
 
 typedef void (*MenuEntryCallback)(RofiQalc & state, MenuReturn action);
 
@@ -38,16 +36,16 @@ struct rq_menu_entry
     MenuEntryCallback callback;
 };
 
-static inline RofiQalc * get_state_ptr(Mode const * sw)
+static RofiQalc * get_state_ptr(Mode const * sw)
 {
-    auto * ptr = reinterpret_cast<RofiQalc*>(mode_get_private_data(sw));
+    auto * ptr = static_cast<RofiQalc*>(mode_get_private_data(sw));
     if (ptr == nullptr) {
         g_error("State is nullptr");
     }
     return ptr;
 }
 
-static inline RofiQalc & get_state(Mode const * sw)
+static RofiQalc & get_state(Mode const * sw)
 {
     return *get_state_ptr(sw);
 }
@@ -73,21 +71,20 @@ static void menu_entry_save_history(RofiQalc & state, MenuReturn action)
     if (!state.options.no_auto_clear_filter) {
         // We can't clear it in the same thread, so lets leave it up to async
         state.textbox_clear_fut = std::async(std::launch::async, []() {
-            rofi_view_trigger_action(rofi_view_get_active(),
-                                    RofiBindingsScope::GLOBAL, (guint)RofiAction::CLEAR_LINE);
+            rofi_view_trigger_action(rofi_view_get_active(), GLOBAL, CLEAR_LINE);
             rofi_view_reload();
         });
     }
 }
 
-static struct rq_menu_entry const menu_entries[] = {
+static constexpr rq_menu_entry menu_entries[] = {
     { "Add to history",     menu_entry_save_history },
     // { "Clear variables",    menu_entry_save_history },
 };
 
-static inline int selected_line_to_history_index(RofiQalc const & state, int selected_line)
+static int selected_line_to_history_index(RofiQalc const & state, unsigned selected_line)
 {
-    return state.history.size() - (selected_line - ARRAY_SIZE(menu_entries)) - 1;
+    return state.history.size() - (selected_line - std::size(menu_entries)) - 1;
 }
 
 static int rq_mode_init(Mode * sw)
@@ -95,13 +92,13 @@ static int rq_mode_init(Mode * sw)
     g_debug("Initializing calc state...");
 
     if (mode_get_private_data(sw) == nullptr) {
-        RofiQalc * state = new RofiQalc();
+        auto * state = new RofiQalc();
 
         if (!state->options.no_history) {
             state->load_history();
         }
 
-        mode_set_private_data(sw, reinterpret_cast<void*>(state));
+        mode_set_private_data(sw, state);
     }
 
     g_debug("Successfully initialized calc state");
@@ -110,8 +107,7 @@ static int rq_mode_init(Mode * sw)
 
 static unsigned int rq_mode_get_num_entries(Mode const * sw)
 {
-    return ARRAY_SIZE(menu_entries)
-        + get_state(sw).history.size();
+    return std::size(menu_entries) + get_state(sw).history.size();
 }
 
 static ModeMode rq_mode_result(Mode * sw, int menu_entry,
@@ -126,10 +122,10 @@ static ModeMode rq_mode_result(Mode * sw, int menu_entry,
         return PREVIOUS_DIALOG;
     }
     if (menu_entry & MENU_QUICK_SWITCH) {
-        return (ModeMode)(menu_entry & MENU_LOWER_MASK);
+        return static_cast<ModeMode>(menu_entry & MENU_LOWER_MASK);
     }
     if (menu_entry & MENU_OK) {
-        if (selected_line < ARRAY_SIZE(menu_entries)) {
+        if (selected_line < std::size(menu_entries)) {
             menu_entries[selected_line].callback(state, MENU_OK);
         } else {
             // struct rq_history_entry const * entry = &state->history[0];
@@ -139,7 +135,7 @@ static ModeMode rq_mode_result(Mode * sw, int menu_entry,
         return RELOAD_DIALOG;
     }
     if (menu_entry & MENU_ENTRY_DELETE) {
-        if (selected_line >= ARRAY_SIZE(menu_entries)) {
+        if (selected_line >= std::size(menu_entries)) {
             int entry_index = selected_line_to_history_index(state, selected_line);
             if (entry_index >= 0) {
                 state.history.erase(state.history.begin() + entry_index);
@@ -183,18 +179,18 @@ static char* rq_mode_get_display_value(Mode const * sw, unsigned selected_line,
                                        G_GNUC_UNUSED GList ** attr_list, int get_entry)
 {
     if (!get_entry) {
-        return NULL;
+        return nullptr;
     }
 
     auto const & state = get_state(sw);
 
-    if (selected_line < ARRAY_SIZE(menu_entries)) {
+    if (selected_line < std::size(menu_entries)) {
         return g_strdup(menu_entries[selected_line].title);
     }
 
     int entry_index = selected_line_to_history_index(state, selected_line);
     if (entry_index < 0) {
-        return NULL;
+        return nullptr;
     }
     auto const & entry = state.history[entry_index];
     auto entry_str = entry.print();
@@ -202,7 +198,7 @@ static char* rq_mode_get_display_value(Mode const * sw, unsigned selected_line,
         entry_str = "(tmp) " + entry_str;
     }
 
-    gchar * history_line = static_cast<gchar*>(g_malloc(entry_str.length() + 1));
+    auto * history_line = static_cast<gchar*>(g_malloc(entry_str.length() + 1));
     memcpy(history_line, entry_str.c_str(), entry_str.length());
     history_line[entry_str.length()] = 0;
 
@@ -211,31 +207,31 @@ static char* rq_mode_get_display_value(Mode const * sw, unsigned selected_line,
 
 static char *rq_mode_get_message(Mode const * sw)
 {
-    auto & state = get_state(sw);
+    auto const & state = get_state(sw);
 
     if (state.is_eval_in_progress()) {
         return g_strdup("Evaluating...");
     }
     if (state.result_is_error) {
-        return g_strdup_printf("Error: <b>%s</b>", state.result.c_str());
+        return g_strdup_printf("Error: <b>%s</b>", state.previous_result.c_str());
     }
     if (state.is_plot_open()) {
         return g_strdup("Plot mode active");
     }
-    if (state.result.length() > 0) {
-        return g_strdup_printf("Result: <b>%s</b>", state.result.c_str());
+    if (!state.previous_result.empty()) {
+        return g_strdup_printf("Result: <b>%s</b>", state.previous_result.c_str());
     }
 
     return g_strdup("Enter expression");
 }
 
 static void eval_callback(std::string const & result,
-                          std::optional<std::string> error, void * userdata)
+                          std::optional<std::string> const & error, void * userdata)
 {
-    RofiQalc * state = reinterpret_cast<RofiQalc*>(userdata);
-    g_info("Reloading view %s", state->result.c_str());
+    auto * state = static_cast<RofiQalc*>(userdata);
+    g_info("Reloading view %s", state->previous_result.c_str());
 
-    state->result = error.value_or(result);
+    state->previous_result = error.value_or(result);
     state->result_is_error = error.has_value();
 
     rofi_view_reload();
