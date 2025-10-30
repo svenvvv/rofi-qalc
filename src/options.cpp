@@ -35,6 +35,8 @@ static char const * const opt_history_only_save_results = "-history-only-save-re
 static char const * const opt_history_length = "-history-length";
 #define OPT_HISTORY_LENGTH_DEFAULT 100
 static char const * const opt_no_auto_clear_filter = "-no-auto-clear-filter";
+static char const * const opt_no_load_history_variables = "-no-load-history-variables";
+static char const * const opt_dump_local_variables = "-dump-local-variables";
 
 Options::Options()
 {
@@ -45,6 +47,8 @@ Options::Options()
     this->auto_save_last_to_history = find_arg(opt_auto_save_history) != -1;
     this->history_only_save_results = find_arg(opt_history_only_save_results) != -1;
     this->no_auto_clear_filter = find_arg(opt_no_auto_clear_filter) != -1;
+    this->no_load_history_variables = find_arg(opt_no_load_history_variables) != -1;
+    this->dump_local_variables = find_arg(opt_dump_local_variables) != -1;
 
     if (find_arg_str(opt_history_length, &strarg) == TRUE) {
         this->history_length = std::stoul(strarg);
@@ -65,4 +69,6 @@ Options::Options()
     g_debug("  history_only_save_results = %d", this->history_only_save_results);
     g_debug("  history_length = %lu", this->history_length);
     g_debug("  eval_timeout_ms = %i", this->eval_timeout_ms);
+    g_debug("  no_load_history_variables = %i", this->no_load_history_variables);
+    g_debug("  dump_local_variables = %i", this->dump_local_variables);
 }

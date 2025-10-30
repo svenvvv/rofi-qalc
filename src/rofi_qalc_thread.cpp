@@ -69,7 +69,7 @@ static constexpr bool starts_with(char const * const haystack, std::string const
  * blocks the entire rofi window.
  * @param data Thread data
  */
-void RofiQalc::calculator_thread_entry(ThreadData & data)
+void RofiQalc::_calculator_thread_entry(ThreadData & data)
 {
     EvaluationOptions const & eo = default_evaluation_options;
     PrintOptions po = default_print_options;
@@ -150,13 +150,15 @@ void RofiQalc::calculator_thread_entry(ThreadData & data)
             data.calc->closeGnuplot();
         }
 
-        // for (auto * var : data.calc->variables) {
-        //     if (var->isKnown() && !var->isBuiltin() && var->isActive()) {
-        //         KnownVariable * kv = (KnownVariable*)var;
-        //         std::cout << "var: " << kv->name(0) << " = " << kv->get() << "\n";
-        //     }
-        // }
-        // std::this_thread::sleep_for(std::chrono::seconds(1));
+        if (data.options.dump_local_variables) {
+            for (auto * var : data.calc->variables) {
+                if (var->isLocal()) {
+                    auto * kv = dynamic_cast<KnownVariable *>(var);
+                    g_debug("Local variable dump: \"%s\" has value \"%s\"",
+                        kv->name(false).c_str(), kv->get().print().c_str());
+                }
+            }
+        }
 
         data.last_result->set(ms);
 

@@ -17,16 +17,20 @@ features I did.
 Uses the same history file as `rofi-calc`, so if you have anything important there 
 then back it up just-in-case.
 
-**A note on variables**: since rofi doesn't provide a way to clear the filter textbox
-contents then using variables is a bit iffy when disabling the filter auto-clear. 
-To use variables you first must type the expression, e.g. `ten = 10` and then
-clear the textbox by pressing Ctrl-F.
+> [!NOTE]
+> Regarding variables:
+>
+> Since rofi doesn't provide a way to clear the filter textbox
+> contents then using variables is a bit iffy when disabling the filter auto-clear.
+> To use variables you first must type the expression, e.g. `ten = 10` and then
+> clear the textbox by pressing Ctrl-F.
+>
+> When you clear the textbox by deleting the text gradually then rofi will at some
+> point call the `rofi-qalc` mode with `ten =`, which is parsed by libqalculate as
+> `ten = 0`, zeroing out the variable.
 
-When you clear the textbox by deleting the text gradually then rofi will at some
-point call the `rofi-qalc` mode with `ten =`, which is parsed by libqalculate as
-`ten = 0`, zeroing out the variable.
-
-Variables are not persistent throughout multiple sessions.
+> [!NOTE]
+> Variables are not persistent throughout multiple sessions.
 
 ## Building
 
@@ -88,3 +92,5 @@ This mode supports the following command-line arguments:
 * `-history-only-save-results` --- disables saving of expressions to history (e.g. instead of `2*10 = 20` the history will show just `20`);
 * `-history-length` --- maximum number of lines of history to keep;
 * `-no-auto-clear-filter` --- disables automatic clearing of the filter textbox;
+* `-no-load-history-variables` --- disables loading of variables from the history file into Qalculate context;
+* `-dump-local-variables` --- dumps local variables during evaluation, launch with `G_MESSAGES_DEBUG=rq` to see them;

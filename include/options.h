@@ -41,6 +41,13 @@ struct Options
     size_t history_length;
     /** Whether to automatically clear the filter text after adding to history  */
     bool no_auto_clear_filter;
+    /** Whether to not load variables into qalculate from history */
+    bool no_load_history_variables;
+    /**
+     * Whether to print out local variables during evaluation.
+     * @note You'll need to set G_MESSAGES_DEBUG=rq to see the messages
+     */
+    bool dump_local_variables;
 };
 
 } /* namespace rq */

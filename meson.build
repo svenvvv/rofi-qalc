@@ -23,9 +23,10 @@ endif
 lib = shared_module('rofi-qalc',
     [
         'src/options.cpp',
-        'src/rofi_shim.cpp',
+        'src/parsing.cpp',
         'src/rofi_qalc.cpp',
         'src/rofi_qalc_thread.cpp',
+        'src/rofi_shim.cpp',
     ],
     install: true,
     include_directories: include_directories('./include'),

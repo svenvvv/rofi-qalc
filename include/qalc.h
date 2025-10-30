@@ -44,12 +44,17 @@ struct HistoryEntry
     std::string result;
     /** Indicates whether the history entry should be persistent (stored in the history file) */
     bool persistent;
+    /** Indicates whether the history entry is an assignment (lacking a result) */
+    bool is_assignment;
 
     [[nodiscard]]
     std::string print() const
     {
         std::stringstream ss;
-        ss << expression << separator << result;
+        ss << expression;
+        if (!is_assignment) {
+            ss << separator << result;
+        }
         return ss.str();
     }
 
@@ -63,6 +68,7 @@ public:
     ~RofiQalc();
 
     void append_result_to_history(bool persistent=true);
+    void erase_history_line(int index);
     void load_history();
     void save_history() const;
 
@@ -96,7 +102,9 @@ public:
     std::future<void> textbox_clear_fut;
 
 protected:
-    static void calculator_thread_entry(ThreadData & data);
+    static void _calculator_thread_entry(ThreadData & data);
+
+    void _load_history_variable_into_qalculate(std::string const & history_line);
 
 protected:
     /** Calculator thread */

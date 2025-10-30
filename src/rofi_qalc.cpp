@@ -17,11 +17,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "qalc.h"
+#include "parsing.h"
 
+#include <algorithm>
 #include <sstream>
 #include <gmodule.h>
 #include <libqalculate/qalculate.h>
 #include <cstring>
+#include <functional>
 #include <numeric>
 
 #undef G_LOG_DOMAIN
@@ -54,12 +57,32 @@ void RofiQalc::append_result_to_history(bool persistent)
         this->history.erase(this->history.begin());
     }
 
-    g_debug("Appending %s = %s to history",
-            this->_last_expr.c_str(), this->previous_result.c_str());
+    // Check whether the expression is a save (e.g. "a = 20"), those don't have a result
+    // as such. libqalculate does return the stored value as the answer, but we don't
+    // want to save "a = 20 = 20" to history.
+    bool is_save =
+        expression_contains_save_function(this->_last_expr, default_parse_options, false);
 
-    this->history.emplace_back(this->_last_expr, this->previous_result, persistent);
+    g_debug("Appending \"%s\" = \"%s\" to history, contains save %d",
+            this->_last_expr.c_str(), this->previous_result.c_str(), is_save);
+    this->history.emplace_back(this->_last_expr, this->previous_result, persistent, is_save);
 }
 
+void RofiQalc::_load_history_variable_into_qalculate(std::string const & history_line)
+{
+    auto & calc = this->_thread_data.calc;
+
+    auto const parsed_variable_opt = parsing::parse_variable_parts(history_line);
+    if (!parsed_variable_opt.has_value()) {
+        return;
+    }
+    auto const &[name, value] = parsed_variable_opt.value();
+
+    g_info("Found save \"%s\" = \"%s\", adding to qalculate variables", name.c_str(), value.c_str());
+
+    auto * history_variable = new KnownVariable(calc->temporaryCategory(), name, value);
+    calc->addVariable(history_variable);
+}
 
 void RofiQalc::load_history()
 {
@@ -91,20 +114,34 @@ void RofiQalc::load_history()
             // g_debug("history line %lu (%lu) %.*s",
             //         state->history_used, newline - head, (int)(newline - head), head);
 
-            std::string_view line{head, static_cast<size_t>(newline - head)};
-            std::string_view expression;
-            std::string_view result;
+            std::string line{head, static_cast<size_t>(newline - head)};
 
-            auto separator_pos = line.rfind(HistoryEntry::separator);
-            if (separator_pos != std::string::npos) {
-                expression = line.substr(0, separator_pos);
-                result = line.substr(separator_pos + HistoryEntry::separator.length());
+            bool is_save =
+                expression_contains_save_function(std::string{line}, default_parse_options, false);
+            if (is_save) {
+                g_debug("Loading history variable \"%s\"", line.c_str());
+                this->history.emplace_back(line, "", true, true);
+
+                if (!options.no_load_history_variables) {
+                    _load_history_variable_into_qalculate(line);
+                }
             } else {
-                expression = "";
-                result = line;
+                std::string expression;
+                std::string result;
+
+                g_debug("Loading history expression \"%s\"", line.c_str());
+
+                auto separator_pos = line.rfind(HistoryEntry::separator);
+                if (separator_pos != std::string::npos) {
+                    expression = line.substr(0, separator_pos);
+                    result = line.substr(separator_pos + HistoryEntry::separator.length());
+                } else {
+                    expression = "";
+                    result = line;
+                }
+                this->history.emplace_back(expression, result, true, false);
             }
 
-            this->history.emplace_back(std::string{expression}, std::string{result}, true);
             if (this->history.size() == this->options.history_length) {
                 g_warning("History file reading stopped, file longer than history_length");
                 break;
@@ -156,7 +193,37 @@ void RofiQalc::save_history() const
     g_free(history_dir);
 }
 
+void RofiQalc::erase_history_line(int index)
+{
+    auto const & entry = this->history[index];
+
+    g_debug("Removing history line %d, expression \"%s\", assignment %d",
+        index, entry.expression.c_str(), entry.is_assignment);
+
+    if (entry.is_assignment) {
+        auto & calc = this->_thread_data.calc;
+
+        auto const variable_parts_opt = parsing::parse_variable_parts(entry.expression);
+        if (!variable_parts_opt.has_value()) {
+            throw std::runtime_error("Failed to parse variable parts");
+        }
+        auto const &[var_name, _] = variable_parts_opt.value();
+
+        auto comparator = [&var_name](Variable const * var) {
+            return var->name() == var_name;
+        };
+        auto const it = std::ranges::find_if(calc->variables, comparator);
+        if (it != std::end(calc->variables)) {
+            g_debug("Found created variable from expr \"%s\", removing it as well", (*it)->title().c_str());
+            calc->expressionItemDeleted(*it);
+        }
+    }
+
+    this->history.erase(this->history.begin() + index);
+}
+
 RofiQalc::RofiQalc()
+    : _var_ans{}
 {
     auto & calc = this->_thread_data.calc;
 
@@ -174,16 +241,16 @@ RofiQalc::RofiQalc()
     std::string const ans_str = "ans";
     for (size_t i = 0; i < std::size(this->_var_ans); ++i) {
         auto index_str = std::to_string(i + 1);
-        auto * kv = new KnownVariable(calc->temporaryCategory(),
-                                      ans_str + index_str, m_undefined,
-                                      "Answer " + index_str, false, true);
+        auto * kv = new KnownVariable(
+            calc->temporaryCategory(), ans_str + index_str, m_undefined,
+            "Answer " + index_str, false, true);
         this->_var_ans[i] = dynamic_cast<KnownVariable*>(calc->addVariable(kv));
     }
     // Add aliases for answer variable
 	this->_var_ans[0]->addName("answer");
 	this->_var_ans[0]->addName(ans_str);
 
-    _thread = std::thread{calculator_thread_entry, std::ref(this->_thread_data)};
+    this->_thread = std::thread{_calculator_thread_entry, std::ref(this->_thread_data)};
 }
 
 RofiQalc::~RofiQalc()

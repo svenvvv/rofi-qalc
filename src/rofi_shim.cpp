@@ -52,7 +52,6 @@ static RofiQalc & get_state(Mode const * sw)
 
 static void menu_entry_save_history(RofiQalc & state, MenuReturn action)
 {
-    g_info("save hist %d", action);
     if (state.result_is_error) {
         g_debug("Result is error, not saving to history");
         return;
@@ -138,7 +137,7 @@ static ModeMode rq_mode_result(Mode * sw, int menu_entry,
         if (selected_line >= std::size(menu_entries)) {
             int entry_index = selected_line_to_history_index(state, selected_line);
             if (entry_index >= 0) {
-                state.history.erase(state.history.begin() + entry_index);
+                state.erase_history_line(entry_index);
             }
         }
         return RELOAD_DIALOG;
