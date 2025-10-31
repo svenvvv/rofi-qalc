@@ -31,6 +31,10 @@ then back it up just-in-case.
 
 ## Building
 
+> [!TIP]
+> Arch Linux users can install this package from the AUR:
+> [`rofi-qalc-git`](https://aur.archlinux.org/packages/rofi-qalc-git).
+
 First install `libqalculate` and `rofi`, as this project depends on them.
 
 If you're using an older version of `rofi` (not built from `next` branch) then you'll also
@@ -50,9 +54,6 @@ meson setup build \
 # Compile the project
 meson compile -C build
 ```
-
-Arch Linux users can make use of the provided `PKGBUILD` file and 
-install the resulting package.
 
 ## Running
 
