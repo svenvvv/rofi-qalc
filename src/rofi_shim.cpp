@@ -211,6 +211,11 @@ static char* rq_mode_get_display_value(Mode const * sw, unsigned selected_line,
 char * rq_mode_get_completion(Mode const * sw, unsigned selected_line) {
     auto const & state = get_state(sw);
 
+    if (selected_line < std::size(menu_entries)) {
+        // A bit pointless to return this, but I'm really not sure what else to do here :-)
+        return g_strdup(menu_entries[selected_line].title);
+    }
+
     int entry_index = selected_line_to_history_index(state, selected_line);
     if (entry_index < 0) {
         return nullptr;
@@ -218,13 +223,15 @@ char * rq_mode_get_completion(Mode const * sw, unsigned selected_line) {
 
     auto const & selected_entry = state.history[entry_index];
     auto const last_expression = state.get_last_expression();
-    auto * history_line = static_cast<gchar*>(g_malloc(last_expression.length() + selected_entry.result.length() + 1));
+    auto * history_line = static_cast<gchar*>(
+        g_malloc(last_expression.length() + selected_entry.result.length() + 1));
     if (history_line == nullptr) {
         g_error("Failed to allocate history line");
     }
 
     memcpy(history_line, last_expression.begin(), last_expression.length());
-    memcpy(history_line + last_expression.length(), selected_entry.result.c_str(), selected_entry.result.length());
+    memcpy(history_line + last_expression.length(), selected_entry.result.c_str(),
+        selected_entry.result.length());
     history_line[last_expression.length() + selected_entry.result.length()] = 0;
 
     return history_line;
