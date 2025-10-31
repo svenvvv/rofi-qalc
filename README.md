@@ -23,14 +23,11 @@ then back it up just-in-case.
 > Since rofi doesn't provide a way to clear the filter textbox
 > contents then using variables is a bit iffy when disabling the filter auto-clear.
 > To use variables you first must type the expression, e.g. `ten = 10` and then
-> clear the textbox by pressing Ctrl-F.
+> clear the textbox by pressing Ctrl-W (by default).
 >
 > When you clear the textbox by deleting the text gradually then rofi will at some
 > point call the `rofi-qalc` mode with `ten =`, which is parsed by libqalculate as
 > `ten = 0`, zeroing out the variable.
-
-> [!NOTE]
-> Variables are not persistent throughout multiple sessions.
 
 ## Building
 
