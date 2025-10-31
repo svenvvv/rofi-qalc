@@ -87,6 +87,12 @@ public:
         return _thread_data.eval_in_progress.load();
     }
 
+    [[nodiscard]]
+    std::string_view get_last_expression() const
+    {
+        return _last_expr;
+    }
+
 public:
     /** Command-line options for the mode */
     Options options;

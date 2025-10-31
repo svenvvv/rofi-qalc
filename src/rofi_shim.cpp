@@ -192,14 +192,40 @@ static char* rq_mode_get_display_value(Mode const * sw, unsigned selected_line,
         return nullptr;
     }
     auto const & entry = state.history[entry_index];
+
     auto entry_str = entry.print();
     if (!entry.persistent) {
         entry_str = "(tmp) " + entry_str;
     }
 
     auto * history_line = static_cast<gchar*>(g_malloc(entry_str.length() + 1));
+    if (history_line == nullptr) {
+        g_error("Failed to allocate history line");
+    }
     memcpy(history_line, entry_str.c_str(), entry_str.length());
     history_line[entry_str.length()] = 0;
+
+    return history_line;
+}
+
+char * rq_mode_get_completion(Mode const * sw, unsigned selected_line) {
+    auto const & state = get_state(sw);
+
+    int entry_index = selected_line_to_history_index(state, selected_line);
+    if (entry_index < 0) {
+        return nullptr;
+    }
+
+    auto const & selected_entry = state.history[entry_index];
+    auto const last_expression = state.get_last_expression();
+    auto * history_line = static_cast<gchar*>(g_malloc(last_expression.length() + selected_entry.result.length() + 1));
+    if (history_line == nullptr) {
+        g_error("Failed to allocate history line");
+    }
+
+    memcpy(history_line, last_expression.begin(), last_expression.length());
+    memcpy(history_line + last_expression.length(), selected_entry.result.c_str(), selected_entry.result.length());
+    history_line[last_expression.length() + selected_entry.result.length()] = 0;
 
     return history_line;
 }
@@ -263,7 +289,7 @@ G_MODULE_EXPORT Mode mode =
     ._token_match               = rq_mode_token_match,
     ._get_display_value         = rq_mode_get_display_value,
     ._get_icon                  = nullptr,
-    ._get_completion            = nullptr,
+    ._get_completion            = rq_mode_get_completion,
     ._preprocess_input          = rq_mode_preprocess_input,
     ._get_message               = rq_mode_get_message,
 

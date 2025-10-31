@@ -62,10 +62,14 @@ void RofiQalc::append_result_to_history(bool persistent)
     // want to save "a = 20 = 20" to history.
     bool is_save =
         expression_contains_save_function(this->_last_expr, default_parse_options, false);
-
-    g_debug("Appending \"%s\" = \"%s\" to history, contains save %d",
-            this->_last_expr.c_str(), this->previous_result.c_str(), is_save);
-    this->history.emplace_back(this->_last_expr, this->previous_result, persistent, is_save);
+    if (is_save) {
+        g_debug("Appending variable \"%s\" to history", this->_last_expr.c_str());
+        this->history.emplace_back(this->_last_expr, "", persistent, true);
+    } else {
+        g_debug("Appending \"%s\" = \"%s\" to history",
+            this->_last_expr.c_str(), this->previous_result.c_str());
+        this->history.emplace_back(this->_last_expr, this->previous_result, persistent, false);
+    }
 }
 
 void RofiQalc::_load_history_variable_into_qalculate(std::string const & history_line)
