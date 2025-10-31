@@ -68,6 +68,7 @@ static void menu_entry_save_history(RofiQalc & state, MenuReturn action)
     state.update_ans();
 
     if (!state.options.no_auto_clear_filter) {
+        state.clear_last_expression();
         // We can't clear it in the same thread, so lets leave it up to async
         state.textbox_clear_fut = std::async(std::launch::async, []() {
             rofi_view_trigger_action(rofi_view_get_active(), GLOBAL, CLEAR_LINE);

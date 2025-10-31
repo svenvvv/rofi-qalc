@@ -76,7 +76,7 @@ public:
     void evaluate(std::string_view const & expr, EvalCallback callback, void * userdata);
 
     [[nodiscard]]
-    bool is_plot_open() const
+    constexpr bool is_plot_open() const
     {
         return _thread_data.is_plot_open;
     }
@@ -88,9 +88,14 @@ public:
     }
 
     [[nodiscard]]
-    std::string_view get_last_expression() const
+    constexpr std::string_view get_last_expression() const
     {
         return _last_expr;
+    }
+
+    constexpr void clear_last_expression()
+    {
+        _last_expr.clear();
     }
 
 public:
