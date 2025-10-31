@@ -35,8 +35,6 @@ struct Options
     bool no_persist_history;
     /** Enable automatically saving last result to history */
     bool auto_save_last_to_history;
-    /** Disable saving expressions to history */
-    bool history_only_save_results;
     /** Maximum number of history entries cached */
     unsigned history_length = 100;
     /** Whether to automatically clear the filter text after adding to history  */
