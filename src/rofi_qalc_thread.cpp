@@ -77,6 +77,7 @@ void RofiQalc::_calculator_thread_entry(ThreadData & data)
     std::vector<LogMessage> log_messages;
 
     po.use_unicode_signs = true;
+    po.interval_display = INTERVAL_DISPLAY_SIGNIFICANT_DIGITS;
 
     bool btrue = true;
     bool bfalse = false;
