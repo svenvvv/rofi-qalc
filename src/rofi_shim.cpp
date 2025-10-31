@@ -160,7 +160,9 @@ static void rq_mode_destroy(Mode * sw)
             state.append_result_to_history();
         }
 
-        state.save_history();
+        if (!state.options.no_persist_history) {
+            state.save_history();
+        }
     }
 
     delete get_state_ptr(sw);

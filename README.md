@@ -85,6 +85,7 @@ This mode supports the following command-line arguments:
 
 * `-eval-timeout-ms` --- evaluation timeout passed to libqalculate;
 * `-no-history` --- disables history file access;
+* `-no-persist-history` --- disables writing to history file, previous history data will still be loaded;
 * `-automatic-save-to-history` --- auto-save last entered expression to history when quitting;
 * `-history-length` --- maximum number of lines of history to keep;
 * `-no-auto-clear-filter` --- disables automatic clearing of the filter textbox;

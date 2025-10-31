@@ -31,7 +31,7 @@ struct Options
     int eval_timeout_ms = 1000;
     /** Disable history file access */
     bool no_history;
-    /** TODO */
+    /** Disable saving history, existing data from the history file will still be loaded and displayed */
     bool no_persist_history;
     /** Enable automatically saving last result to history */
     bool auto_save_last_to_history;
