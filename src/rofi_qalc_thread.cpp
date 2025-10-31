@@ -27,8 +27,8 @@
 using namespace rq;
 
 ThreadData::ThreadData(Options const & options)
-    : calc(new Calculator())
-    , last_result(new MathStructure())
+    : calc(std::make_unique<Calculator>())
+    , last_result(std::make_unique<MathStructure>())
     , options(options)
     , has_new_data(false)
     , queued_query({})
@@ -71,8 +71,11 @@ static constexpr bool starts_with(char const * const haystack, std::string const
  */
 void RofiQalc::_calculator_thread_entry(ThreadData & data)
 {
+    auto & calc = data.calc;
     EvaluationOptions const & eo = default_evaluation_options;
     PrintOptions po = default_print_options;
+    std::vector<LogMessage> log_messages;
+
     po.use_unicode_signs = true;
 
     bool btrue = true;
@@ -86,7 +89,6 @@ void RofiQalc::_calculator_thread_entry(ThreadData & data)
         MathStructure ms;
         std::string result;
         std::string unlocalized_expr;
-        std::optional<std::string> error = std::nullopt;
         bool is_plot_query;
         /* Divided by 2 due to the hack, read below */
         int eval_timeout_ms = data.options.eval_timeout_ms / 2;
@@ -101,15 +103,16 @@ void RofiQalc::_calculator_thread_entry(ThreadData & data)
             query = data.queued_query;
         }
 
+        log_messages.clear();
         g_debug("Evaluating %s...", query.expression.c_str());
 
         if (query.callback == nullptr) {
-            g_debug("Missing callback!");
-            error = std::make_optional("Missing callback");
+            g_warning("Missing callback!");
+            log_messages.emplace_back(ERROR, "Missing callback");
             goto exit;
         }
 
-        unlocalized_expr = data.calc->unlocalizeExpression(query.expression);
+        unlocalized_expr = calc->unlocalizeExpression(query.expression);
         is_plot_query = starts_with(unlocalized_expr.c_str(), "plot(");
 
         /*
@@ -125,33 +128,35 @@ void RofiQalc::_calculator_thread_entry(ThreadData & data)
          * Should be fine (for my use case :)) since I only use the rofi calc for simple
          * calculations.
          */
-        if (!data.calc->calculate(&ms, unlocalized_expr, eval_timeout_ms, eo)) {
-            g_debug("Timed out!");
-            error = std::make_optional("Evaluation timed out");
+        if (!calc->calculate(&ms, unlocalized_expr, eval_timeout_ms, eo)) {
+            g_info("Timed out after %d ms!", eval_timeout_ms);
+            log_messages.emplace_back(ERROR, "Evaluation timed out after {} ms", eval_timeout_ms);
             goto exit;
         }
 
         // calculateAndPrint doesn't show plots??
         if (is_plot_query) {
-            result = data.calc->print(ms, eval_timeout_ms, po);
+            result = calc->print(ms, eval_timeout_ms, po);
         } else {
-            result = data.calc->calculateAndPrint(query.expression, eval_timeout_ms, eo, po);
-            // No way to tell whether it was successful??
-            if (result.empty() && !query.expression.empty()) {
-                g_debug("Failed to calculate");
-                error = std::make_optional("Failed to calculate");
-                goto exit;
+            result = calc->calculateAndPrint(query.expression, eval_timeout_ms, eo, po);
+
+            std::string warning;
+            while (calc->message()) {
+                auto const & msg = *calc->message();
+                g_info("libqalculate message (%d): %s", msg.type(), msg.c_message());
+                log_messages.emplace_back(msg);
+                calc->nextMessage();
             }
         }
         g_debug("Finished evaluation");
 
-        data.is_plot_open = data.calc->gnuplotOpen();
+        data.is_plot_open = calc->gnuplotOpen();
         if (data.is_plot_open && !is_plot_query){
-            data.calc->closeGnuplot();
+            calc->closeGnuplot();
         }
 
         if (data.options.dump_local_variables) {
-            for (auto * var : data.calc->variables) {
+            for (auto * var : calc->variables) {
                 if (var->isLocal()) {
                     auto * kv = dynamic_cast<KnownVariable *>(var);
                     g_debug("Local variable dump: \"%s\" has value \"%s\"",
@@ -164,7 +169,7 @@ void RofiQalc::_calculator_thread_entry(ThreadData & data)
 
 exit:
         data.eval_in_progress = false;
-        query.callback(result, error, query.userdata);
+        query.callback(result, log_messages, query.userdata);
     }
 }
 

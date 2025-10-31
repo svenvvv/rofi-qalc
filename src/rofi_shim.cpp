@@ -52,12 +52,12 @@ static RofiQalc & get_state(Mode const * sw)
 
 static void menu_entry_save_history(RofiQalc & state, MenuReturn action)
 {
-    if (state.result_is_error) {
-        g_debug("Result is error, not saving to history");
+    if (state.previous_result.empty()) {
+        g_info("Result is empty, not saving to history");
         return;
     }
     if (state.is_plot_open()) {
-        g_debug("Result is plot, not saving to history");
+        g_info("Result is plot, not saving to history");
         return;
     }
 
@@ -245,27 +245,42 @@ static char *rq_mode_get_message(Mode const * sw)
     if (state.is_eval_in_progress()) {
         return g_strdup("Evaluating...");
     }
-    if (state.result_is_error) {
-        return g_strdup_printf("Error: <b>%s</b>", state.previous_result.c_str());
-    }
     if (state.is_plot_open()) {
         return g_strdup("Plot mode active");
     }
+
+    std::stringstream ss;
     if (!state.previous_result.empty()) {
-        return g_strdup_printf("Result: <b>%s</b>", state.previous_result.c_str());
+        ss << "Result: <b>" << state.previous_result << "</b>";
+    }
+    if (!state.previous_messages.empty()) {
+        for (auto const & msg : state.previous_messages) {
+            if (msg.type < state.options.message_severity) {
+                continue;
+            }
+            ss << "\n" << msg.message;
+        }
     }
 
-    return g_strdup("Enter expression");
+    auto message = ss.str();
+    if (message.empty()) {
+        return g_strdup("Enter expression");
+    }
+
+    auto ret = static_cast<char*>(g_malloc(message.length() + 1));
+    memcpy(ret, message.c_str(), message.length());
+    ret[message.length()] = 0;
+    return ret;
 }
 
 static void eval_callback(std::string const & result,
-                          std::optional<std::string> const & error, void * userdata)
+                          std::vector<LogMessage> const & messages, void * userdata)
 {
     auto * state = static_cast<RofiQalc*>(userdata);
     g_info("Reloading view %s", state->previous_result.c_str());
 
-    state->previous_result = error.value_or(result);
-    state->result_is_error = error.has_value();
+    state->previous_result = result;
+    state->previous_messages = messages;
 
     rofi_view_reload();
 }

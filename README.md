@@ -91,3 +91,4 @@ This mode supports the following command-line arguments:
 * `-no-auto-clear-filter` --- disables automatic clearing of the filter textbox;
 * `-no-load-history-variables` --- disables loading of variables from the history file into Qalculate context;
 * `-dump-local-variables` --- dumps local variables during evaluation, launch with `G_MESSAGES_DEBUG=rq` to see them;
+* `-message-severity` --- set the severity of messages to display inside the rofi window. Default value is 2, most verbose is 0.

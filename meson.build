@@ -22,6 +22,7 @@ endif
 
 lib = shared_module('rofi-qalc',
     [
+        'src/log_message.cpp',
         'src/options.cpp',
         'src/parsing.cpp',
         'src/rofi_qalc.cpp',

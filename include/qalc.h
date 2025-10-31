@@ -22,7 +22,6 @@
 #include "qalc_thread.h"
 
 #include <future>
-#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -106,8 +105,8 @@ public:
 
     /** Result of the last successful evaluate() call */
     std::string previous_result;
-    /** Whether the result contains an error string */
-    bool result_is_error = false;
+    /** Messages generated during the last evaluate() call */
+    std::vector<LogMessage> previous_messages;
 
     /** Ugly hack, see usage rofi_shim.cpp */
     std::future<void> textbox_clear_fut;

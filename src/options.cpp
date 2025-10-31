@@ -27,21 +27,18 @@
 using namespace rq;
 
 static char const * const opt_eval_timeout_ms = "-eval-timeout-ms";
-#define OPT_EVAL_TIMEOUT_MS_DEFAULT 1000
 static char const * const opt_no_persist_history = "-no-persist-history";
 static char const * const opt_no_history = "-no-history";
 static char const * const opt_auto_save_history = "-automatic-save-to-history";
 static char const * const opt_history_only_save_results = "-history-only-save-results";
 static char const * const opt_history_length = "-history-length";
-#define OPT_HISTORY_LENGTH_DEFAULT 100
 static char const * const opt_no_auto_clear_filter = "-no-auto-clear-filter";
 static char const * const opt_no_load_history_variables = "-no-load-history-variables";
 static char const * const opt_dump_local_variables = "-dump-local-variables";
+static char const * const opt_message_severity = "-message-severity";
 
 Options::Options()
 {
-    char * strarg = nullptr;
-
     this->no_persist_history = find_arg(opt_no_persist_history) != -1;
     this->no_history = find_arg(opt_no_history) != -1;
     this->auto_save_last_to_history = find_arg(opt_auto_save_history) != -1;
@@ -50,25 +47,18 @@ Options::Options()
     this->no_load_history_variables = find_arg(opt_no_load_history_variables) != -1;
     this->dump_local_variables = find_arg(opt_dump_local_variables) != -1;
 
-    if (find_arg_str(opt_history_length, &strarg) == TRUE) {
-        this->history_length = std::stoul(strarg);
-    } else {
-        this->history_length = OPT_HISTORY_LENGTH_DEFAULT;
-    }
-
-    if (find_arg_str(opt_eval_timeout_ms, &strarg) == TRUE) {
-        this->eval_timeout_ms = std::stoi(strarg);
-    } else {
-        this->eval_timeout_ms = OPT_EVAL_TIMEOUT_MS_DEFAULT;
-    }
+    find_arg_uint(opt_history_length, &this->history_length);
+    find_arg_int(opt_eval_timeout_ms, &this->eval_timeout_ms);
+    find_arg_uint(opt_message_severity, &this->message_severity);
 
     g_debug("Parsed options:");
     g_debug("  no_persist_history = %d", this->no_persist_history);
     g_debug("  no_history = %d", this->no_history);
     g_debug("  auto_save_last_to_history = %d", this->auto_save_last_to_history);
     g_debug("  history_only_save_results = %d", this->history_only_save_results);
-    g_debug("  history_length = %lu", this->history_length);
+    g_debug("  history_length = %u", this->history_length);
     g_debug("  eval_timeout_ms = %i", this->eval_timeout_ms);
     g_debug("  no_load_history_variables = %i", this->no_load_history_variables);
     g_debug("  dump_local_variables = %i", this->dump_local_variables);
+    g_debug("  message_severity = %i", this->message_severity);
 }

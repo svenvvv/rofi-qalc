@@ -18,7 +18,7 @@
  */
 #pragma once
 
-#include <cstdlib>
+#include "log_message.h"
 
 namespace rq
 {
@@ -28,7 +28,7 @@ struct Options
     Options();
 
     /** libqalculate evaluation timeout, in milliseconds */
-    int eval_timeout_ms;
+    int eval_timeout_ms = 1000;
     /** Disable history file access */
     bool no_history;
     /** TODO */
@@ -38,7 +38,7 @@ struct Options
     /** Disable saving expressions to history */
     bool history_only_save_results;
     /** Maximum number of history entries cached */
-    size_t history_length;
+    unsigned history_length = 100;
     /** Whether to automatically clear the filter text after adding to history  */
     bool no_auto_clear_filter;
     /** Whether to not load variables into qalculate from history */
@@ -48,6 +48,11 @@ struct Options
      * @note You'll need to set G_MESSAGES_DEBUG=rq to see the messages
      */
     bool dump_local_variables;
+    /**
+     * Severity of messages to display in the rofi window.
+     * See ::MessageType for values.
+     */
+    unsigned message_severity = ERROR;
 };
 
 } /* namespace rq */

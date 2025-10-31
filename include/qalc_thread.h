@@ -19,12 +19,13 @@
 #pragma once
 
 #include "options.h"
+#include "log_message.h"
 
 #include <atomic>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <string>
+#include <vector>
 
 class Calculator;
 class MathStructure;
@@ -33,7 +34,7 @@ namespace rq
 {
 
 typedef void (*EvalCallback)(std::string const & result,
-                             std::optional<std::string> const & error, void * userdata);
+                             std::vector<LogMessage> const & error, void * userdata);
 
 struct ExpressionQuery
 {
